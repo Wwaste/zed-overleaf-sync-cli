@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# 从 Overleaf 同步脚本 - 下载最新内容
+
+PROJECT_DIR="${1:-.}"
+cd "$PROJECT_DIR" || exit 1
+
+# 检查是否有 .overleaf-meta.json
+if [[ ! -f .overleaf-meta.json ]]; then
+    echo "❌ 错误: 找不到 .overleaf-meta.json"
+    echo "这不是一个 Overleaf 项目目录"
+    exit 1
+fi
+
+# 读取项目信息
+PROJECT_ID=$(grep -o '"projectId": "[^"]*"' .overleaf-meta.json | cut -d'"' -f4)
+USE_GIT=$(grep -o '"useGit": *[^,}]*' .overleaf-meta.json | grep -o 'true')
+
+echo "🔄 从 Overleaf 同步项目..."
+echo "Project ID: $PROJECT_ID"
+echo ""
+
+# 如果配置了 Git，优先使用 Git 同步
+if [[ -n "$USE_GIT" ]] && [[ -d .git ]] && git remote | grep -q "^overleaf$"; then
+    echo "📥 使用 Git 同步..."
+    git pull overleaf master
+    if [[ $? -eq 0 ]]; then
+        echo ""
+        echo "✓ Git 同步完成！"
+        exit 0
+    else
+        echo ""
+        echo "⚠️  Git 同步失败，尝试直接下载..."
+        echo ""
+    fi
+fi
+
+# 使用直接下载（备用方案）
+COOKIE=$(grep -o '"cookie": "[^"]*"' ~/.overleaf-zed/config.json 2>/dev/null | cut -d'"' -f4)
+
+if [[ -z "$COOKIE" ]]; then
+    echo "❌ 错误: 未找到登录信息"
+    echo "请先运行: overleaf-cli login"
+    exit 1
+fi
+
+# 下载最新版本
+TMP_ZIP="/tmp/overleaf-sync-$$.zip"
+curl -L "https://www.overleaf.com/project/$PROJECT_ID/download/zip" \
+  -H "Cookie: $COOKIE" \
+  -o "$TMP_ZIP" 2>/dev/null
+
+if [[ ! -f "$TMP_ZIP" ]]; then
+    echo "❌ 下载失败"
+    exit 1
+fi
+
+# 解压到临时目录
+TMP_DIR="/tmp/overleaf-temp-$$"
+mkdir -p "$TMP_DIR"
+unzip -q "$TMP_ZIP" -d "$TMP_DIR"
+
+# 同步文件（保留 .git 和工具脚本）
+rsync -av --delete --exclude='.git' --exclude='.overleaf-meta.json' \
+  --exclude='commit' --exclude='sync' \
+  "$TMP_DIR/" ./
+
+# 清理
+rm -rf "$TMP_DIR" "$TMP_ZIP"
+
+echo ""
+echo "✓ 同步完成！"
+echo ""
+echo "运行 'git status' 查看更改"

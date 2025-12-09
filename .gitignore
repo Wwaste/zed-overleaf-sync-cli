@@ -1,0 +1,43 @@
+# Rust
+target/
+Cargo.lock
+
+# Node.js
+node_modules/
+server/node_modules/
+package-lock.json
+server/package-lock.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# User credentials and local data
+.overleaf-zed/
+credentials.json
+.git-credentials
+
+# Build artifacts
+*.wasm
+dist/
+
+# Test files
+test-*.js
+*-test.js
+*.zip
+
+# Temporary files
+temp/
+tmp/
+Claude\ Code

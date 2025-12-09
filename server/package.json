@@ -1,0 +1,32 @@
+{
+  "name": "overleaf-mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for Overleaf integration with Zed - Git + MCP Hybrid",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "overleaf-cli": "./cli.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "cli": "node cli.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "axios": "^1.7.9",
+    "chokidar": "^5.0.0",
+    "diff-match-patch": "^1.0.5",
+    "form-data": "^4.0.1",
+    "socket.io-client": "^4.8.1"
+  },
+  "keywords": [
+    "overleaf",
+    "latex",
+    "mcp",
+    "zed",
+    "git",
+    "sync"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

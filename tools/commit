@@ -1,0 +1,96 @@
+#!/bin/bash
+
+# 智能 Git 提交脚本 - 为任何 Overleaf 项目生成 commit message
+# 使用方法: 在项目目录中运行 overleaf-commit
+
+PROJECT_DIR="${1:-.}"
+cd "$PROJECT_DIR" || exit 1
+
+# 检查是否是 git 仓库
+if [[ ! -d .git ]]; then
+    echo "❌ 错误: 当前目录不是 Git 仓库"
+    exit 1
+fi
+
+# 检查是否有更改
+if [[ -z $(git status -s) ]]; then
+    echo "✓ 没有需要提交的更改"
+    exit 0
+fi
+
+echo "🔍 分析更改中..."
+echo ""
+
+# 添加所有更改
+git add .
+
+# 获取更改摘要
+CHANGES=$(git diff --cached --stat)
+DETAILED=$(git diff --cached --name-status)
+
+echo "发现以下更改："
+echo "$CHANGES"
+echo ""
+
+# 智能生成 message
+NEW_FILES=$(echo "$DETAILED" | grep "^A" | wc -l | tr -d ' ')
+MODIFIED_FILES=$(echo "$DETAILED" | grep "^M" | wc -l | tr -d ' ')
+DELETED_FILES=$(echo "$DETAILED" | grep "^D" | wc -l | tr -d ' ')
+
+MESSAGE=""
+TIMESTAMP=$(date "+%Y-%m-%d %H:%M")
+
+if [ $NEW_FILES -gt 0 ]; then
+    FILES=$(echo "$DETAILED" | grep "^A" | sed 's/^A\t//' | xargs -I {} basename {} | head -3 | tr '\n' ', ' | sed 's/, $//')
+    if [ $NEW_FILES -gt 3 ]; then
+        MESSAGE="${MESSAGE}新增 ${NEW_FILES} 个文件 (${FILES}...); "
+    else
+        MESSAGE="${MESSAGE}新增 ${FILES}; "
+    fi
+fi
+
+if [ $MODIFIED_FILES -gt 0 ]; then
+    FILES=$(echo "$DETAILED" | grep "^M" | sed 's/^M\t//' | xargs -I {} basename {} | head -3 | tr '\n' ', ' | sed 's/, $//')
+    if [ $MODIFIED_FILES -gt 3 ]; then
+        MESSAGE="${MESSAGE}修改 ${MODIFIED_FILES} 个文件 (${FILES}...); "
+    else
+        MESSAGE="${MESSAGE}修改 ${FILES}; "
+    fi
+fi
+
+if [ $DELETED_FILES -gt 0 ]; then
+    FILES=$(echo "$DETAILED" | grep "^D" | sed 's/^D\t//' | xargs -I {} basename {} | head -3 | tr '\n' ', ' | sed 's/, $//')
+    MESSAGE="${MESSAGE}删除 ${FILES}"
+fi
+
+MESSAGE="[${TIMESTAMP}] ${MESSAGE}"
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "建议的 commit message:"
+echo "$MESSAGE"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+read -p "按 Enter 使用建议，或输入自定义 message: " CUSTOM_MSG
+
+FINAL_MSG="${CUSTOM_MSG:-$MESSAGE}"
+
+# 提交
+git commit -m "$FINAL_MSG"
+echo ""
+echo "✓ 已提交到本地 Git"
+echo ""
+
+# 检查是否有 overleaf remote
+if git remote | grep -q "^overleaf$"; then
+    read -p "是否推送到 Overleaf? (y/n): " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "📤 推送到 Overleaf..."
+        git push overleaf master
+        echo "✓ 推送成功！"
+    else
+        echo "⏸️  已跳过推送"
+    fi
+else
+    echo "ℹ️  没有配置 Overleaf remote，只提交到本地"
+fi

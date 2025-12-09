@@ -1,0 +1,14 @@
+[package]
+name = "overleaf-sync"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+zed_extension_api = "0.2.0"
+
+[profile.release]
+lto = "thin"
+strip = true
