@@ -41,3 +41,6 @@ test-*.js
 temp/
 tmp/
 Claude\ Code
+-e 
+PUSH-INSTRUCTIONS.md
+push-to-github.sh
