@@ -229,9 +229,9 @@ export class FileWatcher {
 
       // Try to push if remote is configured
       try {
-        execSync('git remote get-url origin', { cwd: this.projectDir, stdio: 'ignore' });
-        execSync('git push', { cwd: this.projectDir, stdio: 'ignore' });
-        console.log('📤 Git: Pushed to remote');
+        execSync('git remote get-url overleaf', { cwd: this.projectDir, stdio: 'ignore' });
+        execSync('git push overleaf master', { cwd: this.projectDir, stdio: 'ignore' });
+        console.log('📤 Git: Pushed to Overleaf');
       } catch (err) {
         // No remote or push failed, that's ok
       }
