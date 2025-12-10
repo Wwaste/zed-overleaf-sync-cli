@@ -27,6 +27,8 @@ export class OverleafAPI {
 
     // Add request interceptor to include cookies and CSRF token
     this.client.interceptors.request.use((config) => {
+      config.headers = config.headers || {};
+
       // Add cookies to headers
       if (Object.keys(this.cookies).length > 0) {
         const cookieHeader = Object.entries(this.cookies)
@@ -38,6 +40,7 @@ export class OverleafAPI {
       // Add CSRF token for POST/PUT/DELETE requests
       if (["post", "put", "delete"].includes(config.method.toLowerCase())) {
         if (this.csrfToken) {
+          config.headers["X-CSRF-Token"] = this.csrfToken;
           if (config.data instanceof FormData) {
             config.data.append("_csrf", this.csrfToken);
           } else {
@@ -84,6 +87,33 @@ export class OverleafAPI {
   }
 
   /**
+   * Extract CSRF token from a response (Set-Cookie or HTML)
+   */
+  extractCsrfFromResponse(response) {
+    const setCookies = response.headers["set-cookie"];
+    if (setCookies) {
+      const cookieList = Array.isArray(setCookies) ? setCookies : [setCookies];
+      for (const cookieStr of cookieList) {
+        const match = cookieStr.match(/ol-csrfToken=([^;]+)/);
+        if (match) {
+          return match[1];
+        }
+      }
+    }
+
+    if (typeof response.data === "string") {
+      const htmlMatch = response.data.match(
+        /window\.csrfToken\s*=\s*"([^"]+)"/,
+      );
+      if (htmlMatch) {
+        return htmlMatch[1];
+      }
+    }
+
+    throw new Error("Failed to extract CSRF token from response");
+  }
+
+  /**
    * Login with email and password
    */
   async loginWithPassword(email, password) {
@@ -118,15 +148,9 @@ export class OverleafAPI {
       }
     });
 
-    // Try to get CSRF token with the provided cookies, but don't fail if we can't
-    try {
-      await this.getCsrfToken();
-    } catch (error) {
-      // CSRF token extraction failed, but we might still be able to use the cookie
-      console.error(
-        "Warning: Could not extract CSRF token, continuing without it",
-      );
-    }
+    // Fetch homepage with provided cookies to extract CSRF token
+    const response = await this.client.get("/");
+    this.csrfToken = this.extractCsrfFromResponse(response);
 
     // Verify login by fetching user info
     const userInfo = await this.getUserInfo();
@@ -460,15 +484,19 @@ export class OverleafAPI {
    * Create folder
    */
   async createFolder(projectId, parentFolderId, folderName) {
-    const response = await this.client.post(`/project/${projectId}/folder`, {
-      parent_folder_id: parentFolderId,
-      name: folderName,
-    });
+    try {
+      const response = await this.client.post(`/project/${projectId}/folder`, {
+        parent_folder_id: parentFolderId,
+        name: folderName,
+      });
 
-    if (response.status === 200) {
-      return response.data._id;
+      if (response.status === 200) {
+        return response.data._id;
+      }
+      throw new Error(`Failed to create folder: status ${response.status}`);
+    } catch (err) {
+      throw new Error(`Failed to create folder "${folderName}": ${err.response?.data?.message || err.message}`);
     }
-    throw new Error("Failed to create folder");
   }
 
   /**
