@@ -143,21 +143,24 @@ export class FileWatcher {
     if (folder.docs) {
       folder.docs.forEach(doc => {
         const filePath = path.join(basePath, doc.name);
-        map.set(filePath, { id: doc._id, type: 'doc', folderId: folder._id });
+        const docId = doc.id || doc._id;
+        map.set(filePath, { id: docId, type: 'doc', folderId: folder.id || folder._id });
       });
     }
 
     if (folder.fileRefs) {
       folder.fileRefs.forEach(file => {
         const filePath = path.join(basePath, file.name);
-        map.set(filePath, { id: file._id, type: 'file', folderId: folder._id });
+        const fileId = file.id || file._id;
+        map.set(filePath, { id: fileId, type: 'file', folderId: folder.id || folder._id });
       });
     }
 
     if (folder.folders) {
       folder.folders.forEach(subfolder => {
         const subPath = path.join(basePath, subfolder.name);
-        map.set(subPath, { id: subfolder._id, type: 'folder', folderId: folder._id });
+        const folderId = subfolder.id || subfolder._id;
+        map.set(subPath, { id: folderId, type: 'folder', folderId: folder.id || folder._id });
         this.buildFileMap(subfolder, subPath, map);
       });
     }
@@ -167,6 +170,8 @@ export class FileWatcher {
 
   async handleUpload(change, fileMap) {
     const fileInfo = fileMap.get(change.relativePath);
+    console.log(`🔍 Looking for: "${change.relativePath}"`);
+    console.log(`🔍 Found in fileMap:`, fileInfo ? `id=${fileInfo.id}, type=${fileInfo.type}, folderId=${fileInfo.folderId}` : 'NOT FOUND');
 
     // Read file content
     const content = await fs.readFile(change.filePath, 'utf-8');
@@ -174,7 +179,12 @@ export class FileWatcher {
     if (fileInfo) {
       // Update existing file
       if (fileInfo.type === 'doc') {
-        await this.api.updateFileContent(this.projectId, fileInfo.id, content);
+        await this.api.updateFileContent(
+          this.projectId,
+          fileInfo.id,
+          content,
+          fileInfo.folderId
+        );
         console.log(`  ✓ Updated: ${change.relativePath}`);
       } else {
         // For binary files, need to delete and re-upload
@@ -193,7 +203,12 @@ export class FileWatcher {
         parentFolderId,
         fileName
       );
-      await this.api.updateFileContent(this.projectId, newFileId, content);
+      await this.api.updateFileContent(
+        this.projectId,
+        newFileId,
+        content,
+        parentFolderId
+      );
       fileMap.set(change.relativePath, { id: newFileId, type: 'doc', folderId: parentFolderId });
       console.log(`  ✓ Created: ${change.relativePath}`);
     }

@@ -6,6 +6,7 @@
 
 import axios from "axios";
 import FormData from "form-data";
+import path from "path";
 
 export class OverleafAPI {
   constructor(serverUrl = "https://www.overleaf.com") {
@@ -92,24 +93,35 @@ export class OverleafAPI {
   extractCsrfFromResponse(response) {
     const setCookies = response.headers["set-cookie"];
     if (setCookies) {
-      const cookieList = Array.isArray(setCookies) ? setCookies : [setCookies];
-      for (const cookieStr of cookieList) {
-        const match = cookieStr.match(/ol-csrfToken=([^;]+)/);
-        if (match) {
-          return match[1];
+      const list = Array.isArray(setCookies) ? setCookies : [setCookies];
+      for (const cookie of list) {
+        const m = cookie.match(/ol-csrfToken=([^;]+)/i);
+        if (m) {
+          console.log("✓ Found CSRF in cookie");
+          return m[1];
         }
       }
     }
 
     if (typeof response.data === "string") {
-      const htmlMatch = response.data.match(
-        /window\.csrfToken\s*=\s*"([^"]+)"/,
-      );
-      if (htmlMatch) {
-        return htmlMatch[1];
+      const html = response.data;
+      const patterns = [
+        /<meta[^>]+name=["'](?:ol-csrfToken|csrf-token)["'][^>]+content=["']([^"']+)["']/i,
+        /name="_csrf"\s+value="([^"]+)"/i,
+        /data-csrf(?:token)?=["']([^"']+)["']/i,
+        /csrfToken["']?\s*[:=]\s*["']([^"']+)/i,
+      ];
+
+      for (const re of patterns) {
+        const m = html.match(re);
+        if (m) {
+          console.log("✓ Found CSRF in HTML with pattern:", re.source.substring(0, 50));
+          return m[1];
+        }
       }
     }
 
+    console.error("❌ Failed to find CSRF token in response");
     throw new Error("Failed to extract CSRF token from response");
   }
 
@@ -205,6 +217,13 @@ export class OverleafAPI {
     const response = await this.client.get(`/project/${projectId}/entities`);
     if (response.status === 200) {
       const data = response.data;
+      const docDebug = (data.entities || [])
+        .filter((entity) => entity.type === "doc")
+        .slice(0, 3);
+      console.log(
+        `[OverleafAPI] Full entity objects (first 3):`,
+        JSON.stringify(docDebug, null, 2)
+      );
 
       // 将扁平的文件列表转换为树形结构
       const rootFolder = {
@@ -253,14 +272,21 @@ export class OverleafAPI {
         const folder = folderMap.get(folderPath);
 
         if (entity.type === "doc") {
+          const docId =
+            entity.id || entity.docId || entity.doc_id || entity._id || entity.path;
           folder.docs.push({
-            _id: entity.path, // 使用路径作为临时 ID
+            _id: docId,
+            id: docId,
             name: fileName,
+            path: entity.path,
           });
         } else if (entity.type === "file") {
+          const fileId = entity.id || entity.file_id || entity._id || entity.path;
           folder.fileRefs.push({
-            _id: entity.path,
+            _id: fileId,
+            id: fileId,
             name: fileName,
+            path: entity.path,
           });
         }
       });
@@ -306,19 +332,43 @@ export class OverleafAPI {
   /**
    * Update file content
    */
-  async updateFileContent(projectId, fileId, content) {
-    const lines = content.split("\n");
+  async updateFileContent(projectId, fileIdOrPath, content, folderId = null) {
+    console.log(`🔍 updateFileContent called with path: "${fileIdOrPath}", folderId: "${folderId}"`);
+    // If we still get a real doc id, keep the old fast path
+    const looksLikeId = /^[0-9a-f]{24}$/i.test(fileIdOrPath);
+    if (looksLikeId) {
+      const lines = content.split("\n");
+      const response = await this.client.post(
+        `/project/${projectId}/doc/${fileIdOrPath}`,
+        { lines },
+      );
+      if (response.status === 200) return { success: true };
+      throw new Error(`Failed to update file: status ${response.status}, data: ${JSON.stringify(response.data)}`);
+    }
+
+    // Overleaf path-based upload (replaces existing file at that path)
+    const normalizedPath = fileIdOrPath.replace(/^\/+/, "");
+    const fileName = path.basename(normalizedPath) || "file";
+    const formData = new FormData();
+    const uploadUrl = folderId
+      ? `/project/${projectId}/upload?folder_id=${folderId}`
+      : `/project/${projectId}/upload`;
+
+    // When folderId is provided, Overleaf expects just the filename and folder query param.
+    const relativePath = folderId ? fileName : normalizedPath;
+    formData.append("relativePath", relativePath);
+    formData.append("qqfile", Buffer.from(content, "utf-8"), fileName);
+
     const response = await this.client.post(
-      `/project/${projectId}/doc/${fileId}`,
-      {
-        lines,
-      },
+      uploadUrl,
+      formData,
+      { headers: formData.getHeaders() },
     );
 
-    if (response.status === 200) {
-      return { success: true };
+    if (response.status === 200 && response.data?.success) {
+      return { success: true, entityId: response.data.entity_id };
     }
-    throw new Error(`Failed to update file ${fileId}`);
+    throw new Error(`Failed to update file ${fileIdOrPath}: status ${response.status}, data: ${JSON.stringify(response.data)}`);
   }
 
   /**
