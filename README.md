@@ -1,5 +1,7 @@
 # Overleaf-Zed Extension 🚀
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 > **Git + MCP Hybrid Workflow** - Sync, edit, and compile Overleaf LaTeX projects in Zed with intelligent file watching and automatic synchronization.
 
 Inspired by [Overleaf Workshop](https://github.com/iamhyc/Overleaf-Workshop) for VS Code, this extension brings seamless Overleaf integration to Zed through a powerful combination of Git and MCP (Model Context Protocol).
