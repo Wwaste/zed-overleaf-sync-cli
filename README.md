@@ -2,9 +2,9 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-> **Git + MCP Hybrid Workflow** - Sync, edit, and compile Overleaf LaTeX projects in Zed with intelligent file watching and automatic synchronization.
+> **Git + CLI Workflow** - Sync, edit, and compile Overleaf LaTeX projects in Zed with intelligent file watching and automatic synchronization.
 
-Inspired by [Overleaf Workshop](https://github.com/iamhyc/Overleaf-Workshop) for VS Code, this extension brings seamless Overleaf integration to Zed through a powerful combination of Git and MCP (Model Context Protocol).
+Inspired by [Overleaf Workshop](https://github.com/iamhyc/Overleaf-Workshop) for VS Code, this extension brings seamless Overleaf integration to Zed through a powerful combination of Git and CLI automation.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Zed Extension](https://img.shields.io/badge/Zed-Extension-blue)](https://zed.dev)
@@ -19,7 +19,6 @@ Inspired by [Overleaf Workshop](https://github.com/iamhyc/Overleaf-Workshop) for
 - 🔄 **Real-Time File Sync** - Automatic bidirectional sync with file watching
 - 🌳 **Git Integration** - Full Git support for Overleaf Premium users
 - 🔨 **LaTeX Compilation** - One-command compilation with PDF download
-- 🤖 **MCP Integration** - AI-powered assistance through Zed's Agent Panel
 - 📝 **Complete File Operations** - Create, read, update, delete files seamlessly
 
 ### 🎁 Bonus Features
@@ -140,30 +139,6 @@ git pull overleaf master
 git push overleaf master
 ```
 
-### MCP Tools in Zed
-
-The extension also provides MCP tools accessible through Zed's Agent Panel:
-
-| Tool | Description |
-|------|-------------|
-| `overleaf_login_cookie` | Login with browser cookie |
-| `overleaf_list_projects` | List all projects |
-| `overleaf_get_project` | View project structure |
-| `overleaf_sync_download` | Download project files |
-| `overleaf_sync_upload` | Upload specific file |
-| `overleaf_compile` | Compile and get PDF |
-| `overleaf_start_sync` | Start real-time sync |
-| `overleaf_stop_sync` | Stop real-time sync |
-| `overleaf_sync_status` | Check sync status |
-
-**Example (in Zed Agent Panel):**
-```
-Ask Claude: "Compile my PhD Project and show me any errors"
-→ Claude will use overleaf_compile tool automatically
-```
-
----
-
 ## 📂 Project Structure
 
 ```
@@ -175,7 +150,7 @@ overleaf-zed-extension/
 │   └── lib.rs                  # Zed extension (WebAssembly)
 ├── server/
 │   ├── package.json            # Node.js dependencies
-│   ├── index.js                # MCP server
+│   ├── index.js                # Local sync service for CLI
 │   ├── cli.js                  # CLI tool
 │   ├── file-watcher.js         # File watching & auto-sync
 │   └── overleaf-api.js         # Overleaf API client
@@ -215,18 +190,6 @@ overleaf-zed-extension/
 4. git push                     # Push to Overleaf
 ```
 
-### Workflow 4: AI-Assisted (via MCP)
-
-```
-1. Open Zed's Agent Panel
-2. Ask Claude: "List my Overleaf projects"
-3. Ask: "Download my PhD thesis and show me the structure"
-4. Ask: "Compile it and tell me if there are errors"
-→ Claude uses MCP tools automatically
-```
-
----
-
 ## 🔧 Configuration
 
 ### Config File Location
@@ -255,7 +218,7 @@ Each project folder contains:
 ### ✅ What's Working
 - **CSRF Token Fix**: Properly extracts CSRF tokens from Overleaf HTML for write operations
 - **Auto-Push System**: Automatically commits and pushes changes to Git remote on file save
-- **Recursive Folder Creation**: MCP sync now creates nested folders automatically
+- **Recursive Folder Creation**: Sync now creates nested folders automatically
 - **Improved Error Handling**: Better error messages for authentication and network issues
 - **File Watcher Stability**: Debounced file watching (2-second delay) prevents duplicate uploads
 
@@ -265,12 +228,7 @@ Each project folder contains:
    - Auto-commit with descriptive messages on every change
    - Auto-push to Overleaf Git repository (for Premium users)
 
-2. **Enhanced MCP Tools**
-   - `overleaf_create_folder` - Create nested folder structures
-   - Improved error handling in all MCP operations
-   - Better CSRF token management for write operations
-
-3. **CLI Improvements**
+2. **CLI Improvements**
    - Color-coded output for better readability
    - Interactive project selection
    - Automatic fallback from Git to direct download
@@ -287,13 +245,7 @@ Each project folder contains:
    - **Workaround**: Get a fresh cookie with `overleaf-cli login`
    - **Status**: Under investigation - Overleaf may have changed their HTML structure
 
-2. **MCP Tools Not Working in Zed** ⚠️
-   - **Issue**: Zed's Agent Panel cannot see/use MCP tools from this extension
-   - **Root Cause**: Zed's MCP configuration issues or extension manifest problems
-   - **Workaround**: Use CLI commands directly (`overleaf-cli ...`)
-   - **Status**: Needs further investigation with Zed's MCP integration
-
-3. **File Watcher Performance** ⚠️
+2. **File Watcher Performance** ⚠️
    - **Issue**: Watching large projects (>100 files) can be slow
    - **Workaround**: Use Git workflow instead of `watch` command
    - **Status**: Considering optimization options
@@ -348,9 +300,6 @@ git push overleaf master
 ```bash
 # Enable verbose logging
 DEBUG=overleaf:* overleaf-cli watch
-
-# Check MCP server logs
-tail -f ~/.overleaf-zed/mcp-server.log
 ```
 
 #### Clear Cached Data
@@ -384,7 +333,6 @@ overleaf-cli list
 | File Sync | ✅ Automatic | ✅ Auto via watcher |
 | Git Integration | ❌ No | ✅ Yes (Premium) |
 | CLI Tool | ❌ No | ✅ Yes |
-| MCP Integration | ❌ No | ✅ Yes |
 | Auto Git Commit | ❌ No | ✅ Yes |
 | PDF Preview | ✅ In-editor | ⚠️ External |
 
@@ -412,7 +360,6 @@ Contributions are welcome! Here are some ideas:
 - Inspired by [Overleaf Workshop](https://github.com/iamhyc/Overleaf-Workshop) for VS Code
 - API implementation based on reverse-engineering by [@iamhyc](https://github.com/iamhyc)
 - Built for [Zed Editor](https://zed.dev) by Zed Industries
-- Uses [Model Context Protocol](https://modelcontextprotocol.io) by Anthropic
 
 ---
 

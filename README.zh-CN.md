@@ -2,9 +2,9 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-> **Git + MCP 混合工作流** - 在 Zed 中同步、编辑并编译 Overleaf LaTeX 项目，支持智能文件监听与自动同步。
+> **Git + CLI 工作流** - 在 Zed 中同步、编辑并编译 Overleaf LaTeX 项目，支持智能文件监听与自动同步。
 
-受 VS Code 的 [Overleaf Workshop](https://github.com/iamhyc/Overleaf-Workshop) 启发，此扩展通过 Git 与 MCP（Model Context Protocol）的强力组合，将流畅的 Overleaf 集成带到 Zed。
+受 VS Code 的 [Overleaf Workshop](https://github.com/iamhyc/Overleaf-Workshop) 启发，此扩展通过 Git 与 CLI 自动化的组合，将流畅的 Overleaf 集成带到 Zed。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Zed Extension](https://img.shields.io/badge/Zed-Extension-blue)](https://zed.dev)
@@ -19,7 +19,6 @@
 - 🔄 **实时文件同步** - 自动双向同步并监听文件变化
 - 🌳 **Git 集成** - 为 Overleaf 高级用户提供完整的 Git 支持
 - 🔨 **LaTeX 编译** - 一条命令完成编译并下载 PDF
-- 🤖 **MCP 集成** - 通过 Zed 的 Agent Panel 提供 AI 助手
 - 📝 **完整文件操作** - 无缝创建、读取、更新、删除文件
 
 ### 🎁 额外特性
@@ -140,30 +139,6 @@ git pull overleaf master
 git push overleaf master
 ```
 
-### Zed 中的 MCP 工具
-
-该扩展提供的 MCP 工具可通过 Zed 的 Agent Panel 访问：
-
-| 工具 | 描述 |
-|------|-------------|
-| `overleaf_login_cookie` | 使用浏览器 cookie 登录 |
-| `overleaf_list_projects` | 列出所有项目 |
-| `overleaf_get_project` | 查看项目结构 |
-| `overleaf_sync_download` | 下载项目文件 |
-| `overleaf_sync_upload` | 上传指定文件 |
-| `overleaf_compile` | 编译并获取 PDF |
-| `overleaf_start_sync` | 启动实时同步 |
-| `overleaf_stop_sync` | 停止实时同步 |
-| `overleaf_sync_status` | 查看同步状态 |
-
-**示例（在 Zed Agent Panel 中）：**
-```
-Ask Claude: "Compile my PhD Project and show me any errors"
-→ Claude will use overleaf_compile tool automatically
-```
-
----
-
 ## 📂 项目结构
 
 ```
@@ -175,7 +150,7 @@ overleaf-zed-extension/
 │   └── lib.rs                  # Zed 扩展（WebAssembly）
 ├── server/
 │   ├── package.json            # Node.js 依赖
-│   ├── index.js                # MCP 服务器
+│   ├── index.js                # 本地同步服务
 │   ├── cli.js                  # CLI 工具
 │   ├── file-watcher.js         # 文件监听与自动同步
 │   └── overleaf-api.js         # Overleaf API 客户端
@@ -215,18 +190,6 @@ overleaf-zed-extension/
 4. git push                     # 推送到 Overleaf
 ```
 
-### 工作流 4：AI 辅助（通过 MCP）
-
-```
-1. 打开 Zed 的 Agent Panel
-2. Ask Claude: "List my Overleaf projects"
-3. Ask: "Download my PhD thesis and show me the structure"
-4. Ask: "Compile it and tell me if there are errors"
-→ Claude uses MCP tools automatically
-```
-
----
-
 ## 🔧 配置
 
 ### 配置文件位置
@@ -255,7 +218,7 @@ overleaf-zed-extension/
 ### ✅ 当前可用
 - **CSRF Token 修复**：正确从 Overleaf HTML 中提取 CSRF token，用于写操作
 - **自动推送系统**：保存文件时自动 commit 并推送到 Git 远程
-- **递归创建文件夹**：MCP 同步时自动创建嵌套文件夹
+- **递归创建文件夹**：同步时自动创建嵌套文件夹
 - **改进错误处理**：更好的认证与网络错误提示
 - **文件监听稳定性**：带 2 秒延迟的去抖动，避免重复上传
 
@@ -265,12 +228,7 @@ overleaf-zed-extension/
    - 每次变更自动 commit，并生成描述性信息
    - 自动推送到 Overleaf Git 仓库（高级用户）
 
-2. **增强的 MCP 工具**
-   - `overleaf_create_folder` - 创建嵌套文件夹结构
-   - 所有 MCP 操作拥有更好的错误处理
-   - 更好的写操作 CSRF token 管理
-
-3. **CLI 改进**
+2. **CLI 改进**
    - 彩色输出，便于阅读
    - 交互式项目选择
    - Git 失败时自动回退为直接下载
@@ -287,13 +245,7 @@ overleaf-zed-extension/
    - **解决办法**：使用 `overleaf-cli login` 获取新的 cookie
    - **状态**：调查中——Overleaf 可能修改了 HTML 结构
 
-2. **Zed 中 MCP 工具不可用** ⚠️
-   - **问题**：Zed 的 Agent Panel 无法看到/使用此扩展提供的 MCP 工具
-   - **根因**：Zed 的 MCP 配置或扩展清单问题
-   - **解决办法**：直接使用 CLI 命令（`overleaf-cli ...`）
-   - **状态**：需要进一步排查 Zed 的 MCP 集成
-
-3. **文件监听性能** ⚠️
+2. **文件监听性能** ⚠️
    - **问题**：监控大型项目（>100 个文件）可能变慢
    - **解决办法**：使用 Git 工作流替代 `watch` 命令
    - **状态**：考虑优化方案
@@ -348,9 +300,6 @@ git push overleaf master
 ```bash
 # 启用详细日志
 DEBUG=overleaf:* overleaf-cli watch
-
-# 查看 MCP 服务器日志
-tail -f ~/.overleaf-zed/mcp-server.log
 ```
 
 #### 清理缓存数据
@@ -384,7 +333,6 @@ overleaf-cli list
 | File Sync | ✅ Automatic | ✅ Auto via watcher |
 | Git Integration | ❌ No | ✅ Yes (Premium) |
 | CLI Tool | ❌ No | ✅ Yes |
-| MCP Integration | ❌ No | ✅ Yes |
 | Auto Git Commit | ❌ No | ✅ Yes |
 | PDF Preview | ✅ In-editor | ⚠️ External |
 
@@ -412,7 +360,6 @@ overleaf-cli list
 - 受 VS Code 的 [Overleaf Workshop](https://github.com/iamhyc/Overleaf-Workshop) 启发
 - API 实现基于 [@iamhyc](https://github.com/iamhyc) 的逆向工程
 - 为 [Zed Editor](https://zed.dev)（Zed Industries）而构建
-- 使用 Anthropic 的 [Model Context Protocol](https://modelcontextprotocol.io)
 
 ---
 
