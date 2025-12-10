@@ -22,6 +22,7 @@ export class FileWatcher {
     this.uploadQueue = new Map();
     this.uploadTimer = null;
     this.isGitEnabled = false;
+    this.rootFolderId = null;
   }
 
   async loadConfig() {
@@ -107,8 +108,11 @@ export class FileWatcher {
 
     try {
       // Get project structure
+      // Get project structure
       const project = await this.api.getProjectDetails(this.projectId);
-      const fileMap = this.buildFileMap(project.rootFolder[0]);
+      const rootFolder = project.rootFolder[0];
+      this.rootFolderId = rootFolder._id;
+      const fileMap = this.buildFileMap(rootFolder);
 
       // Process each change
       for (const change of changes) {
@@ -180,20 +184,50 @@ export class FileWatcher {
       // Create new file
       const parentPath = path.dirname(change.relativePath);
       const fileName = path.basename(change.relativePath);
-      const parentInfo = fileMap.get(parentPath === '.' ? '' : parentPath);
+      const normalizedParentPath = parentPath === '.' ? '' : parentPath;
 
-      if (parentInfo && parentInfo.type === 'folder') {
-        const newFileId = await this.api.createDocument(
-          this.projectId,
-          parentInfo.id,
-          fileName
-        );
-        await this.api.updateFileContent(this.projectId, newFileId, content);
-        console.log(`  ✓ Created: ${change.relativePath}`);
-      } else {
-        console.log(`  ✗ Parent folder not found for: ${change.relativePath}`);
-      }
+      const parentFolderId = await this.ensureFolderPath(normalizedParentPath, fileMap);
+
+      const newFileId = await this.api.createDocument(
+        this.projectId,
+        parentFolderId,
+        fileName
+      );
+      await this.api.updateFileContent(this.projectId, newFileId, content);
+      fileMap.set(change.relativePath, { id: newFileId, type: 'doc', folderId: parentFolderId });
+      console.log(`  ✓ Created: ${change.relativePath}`);
     }
+  }
+
+
+  async ensureFolderPath(folderPath, fileMap) {
+    if (!folderPath) {
+      return this.rootFolderId;
+    }
+
+    const parts = folderPath.split(path.sep).filter(Boolean);
+    let currentPath = "";
+    let parentId = this.rootFolderId;
+
+    for (const part of parts) {
+      currentPath = currentPath ? path.join(currentPath, part) : part;
+      const existing = fileMap.get(currentPath);
+
+      if (existing && existing.type === "folder") {
+        parentId = existing.id;
+        continue;
+      }
+
+      const newFolderId = await this.api.createFolder(
+        this.projectId,
+        parentId,
+        part
+      );
+      fileMap.set(currentPath, { id: newFolderId, type: "folder", folderId: parentId });
+      parentId = newFolderId;
+    }
+
+    return parentId;
   }
 
   async handleDelete(change, fileMap) {
