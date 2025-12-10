@@ -248,15 +248,63 @@ Each project folder contains:
 
 ---
 
-## 🐛 Troubleshooting
+## 🔥 Recent Improvements (2025-12)
 
-### "Not logged in" Error
+### ✅ What's Working
+- **CSRF Token Fix**: Properly extracts CSRF tokens from Overleaf HTML for write operations
+- **Auto-Push System**: Automatically commits and pushes changes to Git remote on file save
+- **Recursive Folder Creation**: MCP sync now creates nested folders automatically
+- **Improved Error Handling**: Better error messages for authentication and network issues
+- **File Watcher Stability**: Debounced file watching (2-second delay) prevents duplicate uploads
+
+### 🚀 New Features Added
+1. **Smart Git Integration**
+   - Automatically adds `overleaf` remote during setup
+   - Auto-commit with descriptive messages on every change
+   - Auto-push to Overleaf Git repository (for Premium users)
+
+2. **Enhanced MCP Tools**
+   - `overleaf_create_folder` - Create nested folder structures
+   - Improved error handling in all MCP operations
+   - Better CSRF token management for write operations
+
+3. **CLI Improvements**
+   - Color-coded output for better readability
+   - Interactive project selection
+   - Automatic fallback from Git to direct download
+
+---
+
+## 🐛 Known Issues & Troubleshooting
+
+### 🔴 Current Known Issues
+
+1. **CSRF Token Extraction** ⚠️
+   - **Issue**: CSRF token sometimes fails to extract from Overleaf HTML
+   - **Impact**: Write operations (upload/delete files, compile) may fail
+   - **Workaround**: Get a fresh cookie with `overleaf-cli login`
+   - **Status**: Under investigation - Overleaf may have changed their HTML structure
+
+2. **MCP Tools Not Working in Zed** ⚠️
+   - **Issue**: Zed's Agent Panel cannot see/use MCP tools from this extension
+   - **Root Cause**: Zed's MCP configuration issues or extension manifest problems
+   - **Workaround**: Use CLI commands directly (`overleaf-cli ...`)
+   - **Status**: Needs further investigation with Zed's MCP integration
+
+3. **File Watcher Performance** ⚠️
+   - **Issue**: Watching large projects (>100 files) can be slow
+   - **Workaround**: Use Git workflow instead of `watch` command
+   - **Status**: Considering optimization options
+
+### 🟡 Common User Errors
+
+#### "Not logged in" Error
 ```bash
 # Re-login with fresh cookie
 overleaf-cli login
 ```
 
-### File Sync Not Working
+#### File Sync Not Working
 ```bash
 # Check if watcher is running
 ps aux | grep "overleaf-cli watch"
@@ -266,14 +314,62 @@ pkill -f "overleaf-cli watch"
 overleaf-cli watch
 ```
 
-### Git Clone Fails
-- This is normal for free accounts
-- The CLI will automatically fallback to direct download
-- A local Git repo will still be created for version control
+#### Git Clone Fails
+- **Expected for free accounts** - Overleaf Git access requires Premium
+- The CLI automatically falls back to direct download
+- A local Git repo is still created for version control
+- You can still use Git locally, just can't push to Overleaf remote
 
-### CSRF Token Warning
-- This is harmless - most operations don't need CSRF token
-- If you encounter issues, get a fresh cookie
+#### CSRF Token Warning
+```
+⚠️ Warning: No CSRF token found
+```
+- Most read operations work fine without CSRF token
+- Write operations (upload, delete, compile) may fail
+- **Solution**: Get a fresh cookie with `overleaf-cli login`
+
+#### Auto-Push Fails
+```bash
+# Check if remote is configured
+git remote -v
+
+# Add Overleaf remote if missing
+git remote add overleaf https://git.overleaf.com/YOUR_PROJECT_ID
+
+# Test manual push
+git push overleaf master
+```
+
+### 🔧 Advanced Troubleshooting
+
+#### Debug Mode
+```bash
+# Enable verbose logging
+DEBUG=overleaf:* overleaf-cli watch
+
+# Check MCP server logs
+tail -f ~/.overleaf-zed/mcp-server.log
+```
+
+#### Clear Cached Data
+```bash
+# Remove all cached data
+rm -rf ~/.overleaf-zed/cache/
+
+# Re-login
+overleaf-cli login
+```
+
+#### Test API Connection
+```bash
+# List projects to test authentication
+overleaf-cli list
+
+# If this fails, check:
+# 1. Cookie is valid (login to Overleaf in browser first)
+# 2. Network connection works
+# 3. Overleaf service is not down
+```
 
 ---
 
